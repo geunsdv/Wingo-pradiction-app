@@ -3,102 +3,54 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 # 1. Page setup
-st.set_page_config(page_title="Wingo Prediction App", layout="wide")
+st.set_page_config(page_title="Wingo Prediction App")
 
 # 2. Title and intro
 st.title("🔮 Wingo Prediction App")
-st.write("Welcome! This app helps you analyze and predict the next Wingo result.")
-st.success("Streamlit is working!")
+st.write("Welcome! This app helps you analyze and predict Wingo results.")
+st.success("✅ Streamlit is working!")
 
 # 3. Input history section
 st.header("📥 Enter Previous Wingo Results")
 history_input = st.text_area(
     'Paste recent results (format: color,number on each line)',
     height=200,
-    placeholder="Green,4\nRed,8\nGreen,2\nRed,9\nGreen,7"
+    placeholder="Green,4\nRed,8\nGreen,2\nRed,9\n..."
 )
 
-# 4. Parse user input
-try:
-    lines = history_input.strip().split("\n")
-    results = []
-    for line in lines:
-        color, number = line.strip().split(",")
-        results.append((color.lower(), int(number)))
-except Exception as e:
-     # Count color and number frequencies
-    color_counts = {"green": 0, "red": 0}
-    number_counts = [0] * 10
+# 4. Data processing and prediction
+if history_input:
+    try:
+        # Split lines and convert into DataFrame
+        lines = history_input.strip().split("\n")
+        data = [line.strip().split(",") for line in lines if "," in line]
+        df = pd.DataFrame(data, columns=["Color", "Number"])
+        df["Number"] = pd.to_numeric(df["Number"], errors='coerce')
+        df.dropna(inplace=True)
 
-    for color, num in results:
-        if color in color_counts:
-            color_counts[color] += 1
-        if 0 <= num <= 9:
-            number_counts[num] += 1
+        st.subheader("📊 Last 10 Results")
+        st.dataframe(df.tail(10))
 
-    # Predict most frequent values
-    predicted_color = max(color_counts, key=color_counts.get)
-    predicted_number = number_counts.index(max(number_counts))
+        # Frequency count
+        color_counts = df["Color"].value_counts()
+        number_counts = df["Number"].value_counts().sort_index()
 
-    # Show prediction
-    st.subheader("🎯 Prediction:")
-    st.markdown(f"**Color:** {predicted_color.capitalize()}")
-    st.markdown(f"**Number:** {predicted_number}")
+        # Prediction logic (simple pattern-based)
+        most_common_color = color_counts.idxmax()
+        most_common_number = number_counts.idxmax()
 
-    # Show color frequency chart
-    color_df = pd.DataFrame.from_dict(color_counts, orient='index', columns=["Count"])
-    st.subheader("🎨 Color Frequency")
-    st.bar_chart(color_df)
+        st.subheader("🔎 Prediction")
+        st.write(f"🟢 Most frequent color: **{most_common_color}**")
+        st.write(f"#️⃣ Most frequent number: **{most_common_number}**")
+        st.success(f"📌 Next prediction: **{most_common_color}, {most_common_number}**")
 
-    # Show number frequency chart
-    number_df = pd.DataFrame({
-        "Number": list(range(10)),
-        "Count": number_counts
-    })
-    st.subheader("🔢 Number Frequency")
-    st.bar_chart(number_df.set_index("Number"))
-else:
-    st.info("Enter valid Wingo results to get predictions.") 
-    st.error(f"❌ Error parsing input: {e}")
-    results = []
+        # Visualization
+        st.subheader("📈 Color Frequency Chart")
+        fig, ax = plt.subplots()
+        color_counts.plot(kind='bar', color=['green', 'red', 'blue'], ax=ax)
+        plt.title("Color Frequency")
+        st.pyplot(fig)
 
-# 5. Prediction logic
-if results:
-    # Count frequencies
-    color_counts = {"green": 0, "red": 0}
-    number_counts = [0] * 10  # index = number 0–9
-
-    for color, num in results:
-        if color in color_counts:
-            color_counts[color] += 1
-        if 0 <= num <= 9:
-            number_counts[num] += 1
-
-    # Choose most frequent
-    predicted_color = max(color_counts, key=color_counts.get)
-    predicted_number = number_counts.index(max(number_counts))
-
-    # 6. Display prediction
-    st.subheader("🎯 Prediction:")
-    st.markdown(f"**Color:** {predicted_color.capitalize()}")
-    st.markdown(f"**Number:** {predicted_number}")
-
-    # 7. Show frequency charts
-    # Color bar chart
-    color_df = pd.DataFrame.from_dict(
-        color_counts,
-        orient="index",
-        columns=["Count"]
-    )
-    st.subheader("🎨 Color Frequency")
-    st.bar_chart(color_df)
-
-    # Number bar chart
-    number_df = pd.DataFrame({
-        "Number": list(range(10)),
-        "Count": number_counts
-    })
-    st.subheader("🔢 Number Frequency")
-    st.bar_chart(number_df.set_index("Number"))
-else:
-    st.info("Enter valid Wingo results to see predictions.")
+    except Exception as e:
+        st.error("❌ Error processing input. Please follow format correctly.")
+        st.exception(e)
